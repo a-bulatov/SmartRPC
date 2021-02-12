@@ -65,7 +65,7 @@ def dbtest():
         'port':5432,
         'database':'support',
         'user':'postgres',
-        'password':'Zaq12wsx'
+        'password':'ttest'
     }
     a = DBAdapter.get('psycopg2', params)
     x = a.dicts('select * from svc.entry')
