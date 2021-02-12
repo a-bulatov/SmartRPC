@@ -37,18 +37,22 @@ def test2():
 
 def test3():
     x = rpc({
-                "jsonrpc": "2.0",
-                "method": "SUB",
-                "params":{"X":23,"Y":42},
-                "id":2
-            })
+        "jsonrpc": "2.0",
+        "method": "SUB",
+        "params":{"X":23,"Y":42},
+        "id":2
+    })
     print(x)
+
     x = rpc({
         "jsonrpc": "2.0",
         "method": "SUB",
         "params": {"Y": 42},
         "id": 2
     })
+    print(x)
+
+    x = rpc('SUB', X=3, Y=7)
     print(x)
 
 def dbtest():
@@ -60,20 +64,9 @@ def dbtest():
     print(x)
     print(a.one('select name from test where id = ?', (2,)))
 
-    params = {
-        'host':'127.0.0.1',
-        'port':5432,
-        'database':'support',
-        'user':'postgres',
-        'password':'ttest'
-    }
-    a = DBAdapter.get('psycopg2', params)
-    x = a.dicts('select * from svc.entry')
-    print(x)
-
 if __name__ == '__main__':
     #test()
     #test2()
-    #test3()
+    test3()
 
-    dbtest()
+    #dbtest()
