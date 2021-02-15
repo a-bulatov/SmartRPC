@@ -1,6 +1,6 @@
 from .env import BaseEnv
 from .err import *
-
+import abc
 
 class RPCBase:
     # варианты мапинга входных параметров
@@ -86,12 +86,66 @@ class PythonMethod(Method):
             else:
                 return self.__func(*map)
 
+class nBaseSQL:
+
+    def __init__(self, prev_node, data=None):
+        self.__prev = prev_node
+        self.__next = None
+        self.__data = data
+
+    def add_next(self, class_name):
+        for x in self.__class__.__subclasses__():
+            if x.__name__ == class_name:
+                self.__next = x(None if self.__name__ == 'nBaseSQL' else self)
+                return self.__next
+
+    @property
+    def next(self):
+        return self.__next
+
+    @property
+    def data(self):
+        return self.__data
+
+    @abc.abstractmethod
+    def run(self, sql_method, local_env):
+        pass
+
+    def __call__(self, sql_method, local_env):
+        x = self.run(sql_method, local_env)
+        if isinstance(x, nBaseSQL):
+            return x(sql_method, local_env)
+        elif self.next:
+            local_env['result'] = x
+            return self.next(sql_method, local_env)
+        else:
+            local_env['result'] = x
+            return x
+
+class nAlias(nBaseSQL):
+
+    def run(self, sql_method, local_env):
+        aliases = local_env.get('aliases',{})
+        alias = aliases.get(self.data)
+        if not alias:
+            alias = sql_method.rpc.env.connect(self.data)
+            aliases[self.data] = alias
+            local_env['alias'] = alias
 
 class SQLMethob(Method):
 
     def __init__(self, rpc: RPCBase, query, alias, mapping, postproc=None):
         Method.__init__(self, rpc, mapping)
         self.__nodes = None
+        self.__last = None
+
+        def newnode(name):
+            if self.__last:
+                self.__last = self.__last.add_next(name)
+            else:
+                self.__last = nBaseSQL(None)
+                self.__last = self.__last.add_next(name)
+                self.__nodes = self.__last
 
         def addnode(cmd):
             cmd = cmd[1:]
@@ -151,4 +205,3 @@ class SQLMethob(Method):
             addnode(ext)
         elif txt:
             addquery(txt)
-
