@@ -64,9 +64,19 @@ def dbtest():
     print(x)
     print(a.one('select name from test where id = ?', (2,)))
 
+def dbtest2():
+    rpc.add_sql_method('test',"""
+    @@TEST
+    selec 1 from t1
+    @@Alias2
+    select 2 from t2
+    """)
+
 if __name__ == '__main__':
     #test()
     #test2()
-    test3()
+    #test3()
 
     #dbtest()
+
+    dbtest2()

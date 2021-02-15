@@ -8,7 +8,8 @@ import json
 
 class RPC(RPCBase):
 
-    def python_method(self, name:str=None, mapping:Union[dict, int]=RPCBase.MAP_ARGS):
+    def python_method(self, name: str = None,
+                      mapping: Union[dict, int, Callable[[dict], Union[tuple, dict]]] = RPCBase.MAP_ARGS):
         """
         Декоратор для регистрации функций
         :param name: имя метода в АПИ. если не задано, то будет использовано имя функции
@@ -21,11 +22,14 @@ class RPC(RPCBase):
         если в to указвн ноинр паратетра, то номера должны быть указаны для всех to
         :return:
         """
+
         def decorator(fnc):
             self.add_python_method(fnc, name, mapping)
+
         return decorator
 
-    def add_python_method(self, func: Union[Callable[...,Any], str], name:str=None, mapping:Union[dict, int]=RPCBase.MAP_ARGS):
+    def add_python_method(self, func: Union[Callable[..., Any], str], name: str = None,
+                          mapping: Union[dict, int, Callable[[dict], Union[tuple, dict]]] = RPCBase.MAP_ARGS):
         if isinstance(func, str):
             # тут подгрузить модуль и функцию по имени
             pass
@@ -33,24 +37,27 @@ class RPC(RPCBase):
             name = func.__name__
         self.__methods[name] = PythonMethod(self, func, mapping)
 
-    def add_sql_method(self, name:str, query:str, alias:Union[str,dict]=None, mapping:Union[dict, int]=RPCBase.MAP_ARGS):
-        pass
+    def add_sql_method(self, name: str, query: str, alias: Union[str, dict] = None,
+                       mapping: Union[dict, int, Callable[[dict], Union[tuple, dict]]] = RPCBase.MAP_ARGS,
+                       postproc = None):
+        self.__methods[name] = SQLMethob(self, query, alias, mapping, postproc)
 
-    def __init__(self, env:BaseEnv = None, simple_format=False):
+    def __init__(self, env: BaseEnv = None, simple_format=False):
         RPCBase.__init__(self, env)
         self.__methods = {}
         self.__simple = simple_format
+        self.__env = env if env else BaseEnv()
 
-    def __call__(self, *args, **kwargs)->dict:
+    def __call__(self, *args, **kwargs) -> dict:
         is_func = True
-        if len(args)==1 and kwargs=={}:
+        if len(args) == 1 and kwargs == {}:
             is_func = False
             message = args[0]
-        elif len(args)>1:
+        elif len(args) > 1:
             message = {
-                'jsonrpc':'2.0',
-                'method':args[0],
-                'params':args[1:]
+                'jsonrpc': '2.0',
+                'method': args[0],
+                'params': args[1:]
             }
         else:
             message = {
@@ -72,7 +79,7 @@ class RPC(RPCBase):
 
         f = message.get('method')
 
-        if ((not self.__simple) and str(message.get('jsonrpc','')) != "2.0") or not isinstance(f, str):
+        if ((not self.__simple) and str(message.get('jsonrpc', '')) != "2.0") or not isinstance(f, str):
             return error(ERR_REQUEST)
 
         f = self.__methods.get(f)
@@ -82,14 +89,17 @@ class RPC(RPCBase):
             else:
                 return error(ERR_NOT_FOUND)
 
-        p = message.get('params')
         try:
-            if isinstance(p, list) and p!=[]:
-                f = f(*p)
-            elif isinstance(p, dict) and p!={}:
-                f = f(**p)
+            if callable(f.mapping):
+                f = f(message)
             else:
-                f = f()
+                p = message.get('params')
+                if isinstance(p, list) and p != []:
+                    f = f(*p)
+                elif isinstance(p, dict) and p != {}:
+                    f = f(**p)
+                else:
+                    f = f()
 
             if is_func:
                 return f
@@ -109,4 +119,8 @@ class RPC(RPCBase):
             if isinstance(e, TypeError):
                 return error(ERR_BAD_PARAMS)
             else:
-                return error(ERR_INTERNAL, e.__class__.__name__+': '+x )
+                return error(ERR_INTERNAL, e.__class__.__name__ + ': ' + x)
+
+    @property
+    def env(self) -> BaseEnv:
+        return self.__env
