@@ -65,9 +65,10 @@ class DBAdapter:
     def dicts(self, query: str, *args, **kwargs):
         d, f = self.sql(query, *args, **kwargs)
         ret = []
-        for x in d:
-            rec = {f[n]['name']:v for n, v in enumerate(x)}
-            ret.append(rec)
+        if f:
+            for x in d:
+                rec = {f[n]['name']:v for n, v in enumerate(x)}
+                ret.append(rec)
         return ret
 
     def one(self, query:str, *args, **kwargs):
@@ -110,6 +111,7 @@ class SQLiteAdapter(DBAdapter):
         return 'sqlite3'
 
     def get_fields(self, cursor):
+        if cursor.description is None: return
         return [{"n":n, "name":x[0]} for n, x in enumerate(cursor.description)]
 
     def prepare_conn_params(self, args, kwargs):
@@ -124,6 +126,7 @@ class PostgreSQLAdapter(DBAdapter):
         return 'psycopg2'
 
     def get_fields(self, cursor):
+        if cursor.description is None: return
         return [
             {
                 "n":n,

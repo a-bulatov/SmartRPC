@@ -60,6 +60,9 @@ def dbtest():
         print(x)
 
     a = DBAdapter.get('sqlite3','identifier.sqlite')
+
+    x = a.sql("insert into test(name)values('zzzzz')")
+
     x = a.dicts('select * from test where id = ?', (1,))
     print(x)
     print(a.one('select name from test where id = ?', (2,)))
@@ -77,6 +80,6 @@ if __name__ == '__main__':
     #test2()
     #test3()
 
-    #dbtest()
+    dbtest()
 
-    dbtest2()
+    #dbtest2()

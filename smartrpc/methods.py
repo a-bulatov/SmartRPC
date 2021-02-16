@@ -2,6 +2,7 @@ from .env import BaseEnv
 from .err import *
 import abc
 
+
 class RPCBase:
     # варианты мапинга входных параметров
     MAP_JSON = 0  # передача пришедших параметров в первый и единственный аргумент функции
@@ -86,6 +87,7 @@ class PythonMethod(Method):
             else:
                 return self.__func(*map)
 
+
 class nBaseSQL:
 
     def __init__(self, prev_node, data=None):
@@ -122,17 +124,38 @@ class nBaseSQL:
             local_env['result'] = x
             return x
 
+
 class nAlias(nBaseSQL):
 
     def run(self, sql_method, local_env):
-        aliases = local_env.get('aliases',{})
+        aliases = local_env.get('aliases', {})
         alias = aliases.get(self.data)
         if not alias:
             alias = sql_method.rpc.env.connect(self.data)
             aliases[self.data] = alias
             local_env['alias'] = alias
 
-class SQLMethob(Method):
+
+def nSQL(nBaseSQL):
+
+    def run(self, sql_method, local_env):
+        alias = local_env.get('alias', local_env['aliases'].get(None))
+        if not alias:
+            alias = sql_method.rpc.env.connect(self.data)
+            local_env['aliases'][None] = alias
+        args = local_env.get('args',{})
+        d, f = alias.sql(self.data, **args)
+        ret = []
+        if f:
+            for x in d:
+                rec = {f[n]['name']: v for n, v in enumerate(x)}
+                ret.append(rec)
+        else:
+            ret = d
+        return ret
+
+
+class SQLMethod(Method):
 
     def __init__(self, rpc: RPCBase, query, alias, mapping, postproc=None):
         Method.__init__(self, rpc, mapping)
@@ -161,7 +184,7 @@ class SQLMethob(Method):
         txt, wait, nextn, newline, ext = '', '', -1, True, ''
         query += '\n'
         for n, x in enumerate(query):
-            if n == len(query)-1: break
+            if n == len(query) - 1: break
             if n == nextn: continue
             if wait != '':
                 if wait == "'":
@@ -179,23 +202,23 @@ class SQLMethob(Method):
                     elif ext != '':
                         ext += x
                     continue
-                elif wait == '*/' and x == '/' and query[n-1] == '*':
+                elif wait == '*/' and x == '/' and query[n - 1] == '*':
                     wait = ''
             else:
-                if newline and x == '@' and query[n+1] == '@':
+                if newline and x == '@' and query[n + 1] == '@':
                     nextn = n + 1
                     wait = '\n'
                     ext = '@'
                     if txt:
                         addquery(txt)
                         txt = ''
-                elif x == '/' and query[n+1] == '*':
-                    nextn = n+1
+                elif x == '/' and query[n + 1] == '*':
+                    nextn = n + 1
                     wait = '*/'
-                elif x == '-' and query[n+1] == '-':
+                elif x == '-' and query[n + 1] == '-':
                     nextn = n + 1
                     wait = '\n'
-                elif x in ('\t','\f',' ') and newline:
+                elif x in ('\t', '\f', ' ') and newline:
                     continue
                 else:
                     newline = x == '\n'

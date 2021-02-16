@@ -2,7 +2,7 @@ from typing import Callable, Any, Union
 from .env import BaseEnv
 from collections import OrderedDict
 from .err import *
-from .methods import RPCBase, PythonMethod, SQLMethob
+from .methods import RPCBase, PythonMethod, SQLMethod
 import json
 
 
