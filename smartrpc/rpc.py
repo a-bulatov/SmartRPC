@@ -40,7 +40,7 @@ class RPC(RPCBase):
     def add_sql_method(self, name: str, query: str, alias: Union[str, dict] = None,
                        mapping: Union[dict, int, Callable[[dict], Union[tuple, dict]]] = RPCBase.MAP_ARGS,
                        postproc = None):
-        self.__methods[name] = SQLMethob(self, query, alias, mapping, postproc)
+        self.__methods[name] = SQLMethod(self, query, alias, mapping, postproc)
 
     def __init__(self, env: BaseEnv = None, simple_format=False):
         RPCBase.__init__(self, env)

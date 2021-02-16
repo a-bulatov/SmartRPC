@@ -107,6 +107,14 @@ class DBAdapter:
 
 class SQLiteAdapter(DBAdapter):
 
+    def cursor(self, query:str, *args, **kwargs):
+        if kwargs!={}:
+            query = query % kwargs
+            kwargs = {}
+        cursor = self.conn.cursor()
+        cursor.execute(query, *args, **kwargs)
+        return cursor
+
     def module_name(self):
         return 'sqlite3'
 

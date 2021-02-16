@@ -75,11 +75,28 @@ def dbtest2():
     select 2 from t2
     """)
 
+def db_rpc():
+    rpc.env.set_db_alias('SQL3','sqlite3','identifier.sqlite')
+
+    rpc.add_sql_method('test3s',"""
+    @@SQL3
+    select * from test where id = %(id)s
+    """)
+    x = rpc({
+        "jsonrpc": "2.0",
+        "method": "test3s",
+        "params": {"id": 2},
+        "id": 2
+    })
+    print(x)
+
+
 if __name__ == '__main__':
     #test()
     #test2()
     #test3()
 
-    dbtest()
-
+    #dbtest()
     #dbtest2()
+
+    db_rpc()

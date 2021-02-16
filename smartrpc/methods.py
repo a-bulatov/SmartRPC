@@ -95,11 +95,10 @@ class nBaseSQL:
         self.__next = None
         self.__data = data
 
-    def add_next(self, class_name):
-        for x in self.__class__.__subclasses__():
-            if x.__name__ == class_name:
-                self.__next = x(None if self.__name__ == 'nBaseSQL' else self)
-                return self.__next
+    def add_next(self, cls, data=None):
+        if cls in nBaseSQL.__subclasses__():
+            self.__next = cls(None if self.__class__.__name__ == 'nBaseSQL' else self, data)
+            return self.__next
 
     @property
     def next(self):
@@ -136,15 +135,16 @@ class nAlias(nBaseSQL):
             local_env['alias'] = alias
 
 
-def nSQL(nBaseSQL):
+class nSQL(nBaseSQL):
 
     def run(self, sql_method, local_env):
         alias = local_env.get('alias', local_env['aliases'].get(None))
         if not alias:
             alias = sql_method.rpc.env.connect(self.data)
             local_env['aliases'][None] = alias
-        args = local_env.get('args',{})
-        d, f = alias.sql(self.data, **args)
+        args = local_env.get('args',())
+        kwargs = local_env.get('kwargs', {})
+        d, f = alias.sql(self.data, *args, **kwargs)
         ret = []
         if f:
             for x in d:
@@ -159,26 +159,27 @@ class SQLMethod(Method):
 
     def __init__(self, rpc: RPCBase, query, alias, mapping, postproc=None):
         Method.__init__(self, rpc, mapping)
-        self.__nodes = None
-        self.__last = None
+        pool = {}
 
-        def newnode(name):
-            if self.__last:
-                self.__last = self.__last.add_next(name)
+        def newnode(pool, cls, data=None):
+            last = pool.get('last')
+            if last:
+                last = last.add_next(cls, data)
             else:
-                self.__last = nBaseSQL(None)
-                self.__last = self.__last.add_next(name)
-                self.__nodes = self.__last
+                last = nBaseSQL(None)
+                last = last.add_next(cls, data)
+                pool['nodes'] = last
+            pool['last'] = last
 
-        def addnode(cmd):
+        def addnode(pool, cmd):
             cmd = cmd[1:]
-            pass
-            return True
+            newnode(pool, nAlias,cmd)
+            return True # не ждем @@
 
-        def addquery(qry):
+        def addquery(pool, qry):
             qry = qry.strip()
             if qry.strip() == '': return
-            pass
+            newnode(pool, nSQL, qry)
 
         ###################################################
         txt, wait, nextn, newline, ext = '', '', -1, True, ''
@@ -195,7 +196,7 @@ class SQLMethod(Method):
                         wait = ''
                         newline = True
                         if ext:
-                            if addnode(ext):
+                            if addnode(pool, ext):
                                 ext = ''
                             else:
                                 wait = '@@'
@@ -210,7 +211,7 @@ class SQLMethod(Method):
                     wait = '\n'
                     ext = '@'
                     if txt:
-                        addquery(txt)
+                        addquery(pool, txt)
                         txt = ''
                 elif x == '/' and query[n + 1] == '*':
                     nextn = n + 1
@@ -225,6 +226,17 @@ class SQLMethod(Method):
                     txt += x
                     continue
         if ext:
-            addnode(ext)
+            addnode(pool, ext)
         elif txt:
-            addquery(txt)
+            addquery(pool, txt)
+        self.__nodes = pool.get('nodes')
+
+    def __call__(self, *args, **kwargs):
+        local_env = {
+            'alias': None,
+            'aliases': {},
+            'result': None,
+            'args': args,
+            'kwargs':kwargs
+        }
+        return self.__nodes(self, local_env)
