@@ -90,6 +90,15 @@ def db_rpc():
     })
     print(x)
 
+def taran_test():
+    a = DBAdapter.get('tarantool', host='10.0.0.219')
+    #a.dml("CREATE TABLE table1 (column1 INTEGER PRIMARY KEY, column2 VARCHAR(100))")
+    #a.dml("INSERT INTO table1 VALUES (1, 'A')")
+    #a.dml("UPDATE table1 SET column2 = 'B'")
+    x = a.sql("SELECT * FROM table1 WHERE column1 = 1")
+    a.commit()
+    print(x)
+
 
 if __name__ == '__main__':
     #test()
@@ -99,4 +108,6 @@ if __name__ == '__main__':
     #dbtest()
     #dbtest2()
 
-    db_rpc()
+    #db_rpc()
+
+    taran_test()
