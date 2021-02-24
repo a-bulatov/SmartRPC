@@ -171,7 +171,10 @@ class TarantoolAdapter(DBAdapter):
     def sql(self, query: str, *args, **kwargs):
         try:
             cursor = self.cursor(query, *args, **kwargs)
-            return cursor.data, self.get_fields(cursor)
+            if cursor.data is None:
+                return None, None
+            else:
+                return cursor.data, self.get_fields(cursor)
         except Exception as e:
             self.rollback()
             raise e

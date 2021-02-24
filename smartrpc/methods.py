@@ -237,6 +237,11 @@ class SQLMethod(Method):
             'aliases': {},
             'result': None,
             'args': args,
-            'kwargs':kwargs
+            'kwargs': kwargs
         }
-        return self.__nodes(self, local_env)
+        ret = self.__nodes(self, local_env)
+
+        for x in local_env['aliases']:
+            local_env['aliases'][x].commit()
+
+        return ret
