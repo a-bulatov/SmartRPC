@@ -78,9 +78,9 @@ class PythonMethod(Method):
                 return self.__func(kwargs)
         elif map == RPCBase.MAP_JSON_ENV:
             if args != ():
-                return self.__func(args, self.__rpc.env)
+                return self.__func(args, self.rpc.env)
             else:
-                return self.__func(kwargs, self.__rpc.env)
+                return self.__func(kwargs, self.rpc.env)
         else:
             if isinstance(map, dict):
                 return self.__func(**map)

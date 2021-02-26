@@ -26,16 +26,72 @@ class RPC(RPCBase):
         def decorator(fnc):
             self.add_python_method(fnc, name, mapping)
 
-        return decorator
+        if callable(name):
+            self.add_python_method(name)
+        else:
+            return decorator
 
     def add_python_method(self, func: Union[Callable[..., Any], str], name: str = None,
                           mapping: Union[dict, int, Callable[[dict], Union[tuple, dict]]] = RPCBase.MAP_ARGS):
         if isinstance(func, str):
-            # тут подгрузить модуль и функцию по имени
+            # todo тут подгрузить модуль и функцию по имени
             pass
         if name is None:
             name = func.__name__
         self.__methods[name] = PythonMethod(self, func, mapping)
+
+    def sql_method(self, name: str = None, alias: Union[str, dict] = None,
+                       mapping: Union[dict, int, Callable[[dict], Union[tuple, dict]]] = RPCBase.MAP_ARGS,
+                       postproc = None):
+        """
+        Декоратор для регистрации SQL. Декорируемая функция должна вернуть строку с запросом, либо словарь,
+        содержащий те же параметры, что у декоратора + обязательный параметр query. Функция выполняется только
+        раз - при выполнеении декоратора
+        :param name: имя метода в АПИ. если не задано, то будет использовано имя декорируемой функции
+        :param alias: имя или параметры соединения по умолчанию
+        :param mapping: описание мапинга параметров, если нужно
+        :param postproc: процедура постобработки данных. на входе получит выборку данных и описание полей
+        :return:
+        """
+        def decorator(fnc):
+            query = fnc()
+            args = {'rpc': self}
+            if isinstance(query, dict):
+                fn = query.get('name', name)
+                args['alias'] = query.get('alias', alias)
+                args['mapping'] = query.get('mapping', mapping)
+                args['postproc'] = query.get('postproc', postproc)
+                args['query'] = query['query']
+            else:
+                fn =  name
+                args['alias'] =  alias
+                args['mapping'] = mapping
+                args['postproc'] = postproc
+                args['query'] = query
+            if fn is None:
+                fn = fnc.__name__
+            self.__methods[fn] = SQLMethod(**args)
+
+        if callable(name):
+            query = name()
+            args = {'rpc': self}
+            if isinstance(query, dict):
+                fn = query.get('name')
+                args['alias'] = query.get('alias')
+                args['mapping'] = query.get('mapping')
+                args['postproc'] = query.get('postproc')
+                args['query'] = query['query']
+            else:
+                fn = None
+                args['alias'] = None
+                args['mapping'] = RPCBase.MAP_ARGS
+                args['postproc'] = None
+                args['query'] = query
+            if fn is None:
+                fn = name.__name__
+            self.__methods[fn] = SQLMethod(**args)
+        else:
+            return decorator
 
     def add_sql_method(self, name: str, query: str, alias: Union[str, dict] = None,
                        mapping: Union[dict, int, Callable[[dict], Union[tuple, dict]]] = RPCBase.MAP_ARGS,
@@ -68,7 +124,15 @@ class RPC(RPCBase):
 
         try:
             if isinstance(message, str):
-                message = json.loads(message, object_pairs_hook=OrderedDict)
+                message = message.strip()
+                if not message.startswith('{') and message in self.__methods:
+                    message = {
+                        "jsonrpc": "2.0",
+                        "method": message
+                    }
+                    is_func = True
+                else:
+                    message = json.loads(message, object_pairs_hook=OrderedDict)
             if not isinstance(message, dict):
                 raise Exception('Parse error')
         except Exception as e:
