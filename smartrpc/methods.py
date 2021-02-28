@@ -137,6 +137,12 @@ class nAlias(nBaseSQL):
 
 class nSQL(nBaseSQL):
 
+    def __init__(self, prev_node, data=None):
+        data = data.strip()
+        if data.startswith('*'):
+            data = 'select * from ' + data[1:]
+        nBaseSQL.__init__(self, prev_node, data)
+
     def run(self, sql_method, local_env):
         alias = local_env.get('alias', local_env['aliases'].get(None))
         if not alias:

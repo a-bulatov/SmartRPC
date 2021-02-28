@@ -22,7 +22,7 @@ def fn_sql():
 
     return """
     @@tSQL
-    select * from test
+    * test
     """
 
 
