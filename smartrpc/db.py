@@ -37,7 +37,7 @@ class DBAdapter:
         self.__conn = None
 
     @property
-    def conn(self):
+    def connection(self):
         if not self.__conn:
             if isinstance(self.__p, dict):
                 self.__conn = self.__m.connect(**self.__p)
@@ -46,7 +46,7 @@ class DBAdapter:
         return self.__conn
 
     def cursor(self, query: str, *args, **kwargs):
-        cursor = self.conn.cursor()
+        cursor = self.connection.cursor()
         cursor.execute(query, *args, **kwargs)
         return cursor
 
@@ -71,6 +71,14 @@ class DBAdapter:
                 rec = {f[n]['name']: v for n, v in enumerate(x)}
                 ret.append(rec)
         return ret
+
+    def __call__(self, query: str, *args, **kwargs):
+        try:
+            cursor = self.cursor(query, *args, **kwargs)
+            return cursor.fetchall()
+        except Exception as e:
+            self.rollback()
+            raise e
 
     def one(self, query: str, *args, **kwargs):
         try:
@@ -112,7 +120,7 @@ class SQLiteAdapter(DBAdapter):
         if kwargs != {}:
             query = query % kwargs
             kwargs = {}
-        cursor = self.conn.cursor()
+        cursor = self.connection.cursor()
         cursor.execute(query, *args, **kwargs)
         return cursor
 
@@ -146,6 +154,14 @@ class PostgreSQLAdapter(DBAdapter):
             for n, x in enumerate(cursor.description)
         ]
 
+    def cursor(self, query: str, *args, **kwargs):
+        if kwargs != {}:
+            query = query % kwargs
+            kwargs = {}
+        cursor = self.connection.cursor()
+        cursor.execute(query, *args, **kwargs)
+        return cursor
+
 
 class TarantoolAdapter(DBAdapter):
 
@@ -155,7 +171,7 @@ class TarantoolAdapter(DBAdapter):
     def cursor(self, query: str, *args, **kwargs):
         if kwargs != {}:
             args = kwargs
-        return self.conn.execute(query, args)
+        return self.connection.execute(query, args)
 
     def prepare_conn_params(self, args, kwargs):
         if len(args) > 0 and isinstance(args[0], dict):
