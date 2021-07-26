@@ -63,6 +63,14 @@ class DBAdapter:
             self.rollback()
             raise e
 
+    def __call__(self, query: str, *args, **kwargs):
+        try:
+            cursor = self.cursor(query, *args, **kwargs)
+            return cursor.fetchall()
+        except Exception as e:
+            self.rollback()
+            raise e
+
     def dicts(self, query: str, *args, **kwargs):
         d, f = self.sql(query, *args, **kwargs)
         ret = []
